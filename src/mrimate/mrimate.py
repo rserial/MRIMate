@@ -4,10 +4,13 @@ from parrec.recread import Recread
 from parrec.parread import Parread
 from pathlib import Path
 from datetime import datetime
-import plotly.express as px
 import numpy as np
-from models import MRIExperiment_Philips
-
+from rich import print
+from mrimate.models import MRIExperiment_Philips
+from mrimate.plot import plot_proton_density
+import plotly.graph_objects as go
+from typing import Optional
+import h5py
 
 class MRImateExperiment:
     """
@@ -58,7 +61,11 @@ class MRImateExperiment:
         self.par_file = experiment_path / (filename + '.par')
         self.rec_file = experiment_path / (filename + '.rec')
         self.parameters: MRIExperiment_Philips
-        self.data: Recread
+        self.data: Recread = None
+        self.spin_density: np.ndarray = None
+        self.phase: np.ndarray = None
+        self.data_loaded = False
+
 
     def load(self) -> None:
         """Load experiment parameters and data from the PAR, REC files."""
@@ -67,91 +74,102 @@ class MRImateExperiment:
 
         self.removing_unwanted_zeros()
         self.resize_data()
+        self.data_loaded = True
 
     def describe(self) -> None:
-        description = "Experiment Details:\n"
-        description += f"- Type: {self.parameters.SeriesDataType}\n"
-        description += f"- Date: {datetime.strptime(self.parameters.ExaminationDateTime, '%Y.%m.%d / %H:%M:%S').strftime('%B %d, %Y')}\n\n"
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return None
+        if hasattr(self.parameters, 'describe'):
+            self.parameters.describe()
 
-        description += "Scan Information:\n"
-        dimension = "3D" if '3D' in self.parameters.SeriesDataType else "2D"
-        description += f"- Technique: {self.parameters.Technique}\n"
-        description += f"- Dimension: {dimension}\n"
-        description += f"- Resolution: {self.parameters.ScanResolution[0]}x{self.parameters.ScanResolution[1]} pixels\n"
-        description += f"- Slices: {self.parameters.MaxNumberOfSlicesLocations}\n"
-        description += f"- Dynamics: {self.parameters.MaxNumberOfDynamics if self.parameters.MaxNumberOfDynamics > 1 else 'None'}\n"
-        description += f"- Flow Encoding: {'Yes' if self.parameters.PhaseEncodingVelocity else 'No'}\n"
-        description += f"- Diffusion Encoding: {'Yes' if self.parameters.Diffusion else 'No'}\n"
-
-        print(description)
-        return
-
-    
+    def display_parameters(self)-> None:
+        """Display model parameters"""
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return None
+        if hasattr(self.parameters, 'display_parameters'):
+            self.parameters.display_parameters()
+            
     def resize_data(self) -> None:
         """Resize the loaded data."""
-        target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.MaxNumberOfSlicesLocations, self.parameters.MaxNumberOfDynamics)
-        self.data = np.reshape(self.data, target_shape)
+        if self.parameters.PhaseEncodingVelocity == (0.0, 0.0, 0.0):
+            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.MaxNumberOfSlicesLocations, self.parameters.MaxNumberOfDynamics)
+            self.data = np.reshape(self.data, target_shape)
+            self.spin_density = self.data
+        else:
+            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.MaxNumberOfSlicesLocations, self.parameters.MaxNumberOfDynamics*2)
+            self.data = np.reshape(self.data, target_shape)
+            self.spin_density =  self.data[:, :, :, 0::2]
+            self.phase =  self.data[:, :, :, 1::2]
 
     def removing_unwanted_zeros(self) -> None:
+      
         non_zero_indices = np.nonzero(self.data)
-
         min_index = np.min(non_zero_indices, axis=1)
         max_index = np.max(non_zero_indices, axis=1)
 
         cropped_data = self.data[min_index[0]:max_index[0]+1, min_index[1]:max_index[1]+1, min_index[2]:max_index[2]+1]
-        self.data = cropped_data
+        self.spin_density = cropped_data
         return
 
-    def plot_proton_density(self) -> px.imshow:
-        """Generate and return plots for proton density data."""
-
-        flipped_data = np.transpose(self.data, axes=(1, 0, 2,3))
-        print(flipped_data.shape)
-
-        fig = px.imshow(flipped_data[:,:,0,0], color_continuous_scale="gray")
-        fig.update_layout(
-            xaxis=dict(
-                title='x-axis',
-                showline=True,
-                linecolor='black',
-                linewidth=2,
-                mirror=True,
-                showticklabels=True,  # Ensure tick labels are shown
-                tickcolor='black',  # Set tick color
-                ticks='outside',  # Place ticks outside the plot area
-                ticklen=6,
-                tickwidth=1.5,
-                tickfont=dict(size=16),
-            ),
-            yaxis=dict(
-                title='y-axis',
-                showline=True,
-                linecolor='black',
-                linewidth=2, 
-                mirror=True,
-                showticklabels=True,  # Ensure tick labels are shown
-                tickcolor='black',  # Set tick color
-                ticks='outside',  # Place ticks outside the plot area
-                ticklen=6,
-                tickwidth=1.5,
-                tickfont=dict(size=16),
-            ),
-            coloraxis_colorbar=dict(
-                thickness=20,
-                len=0.50,
-                tickfont=dict(size=16),
-                tickcolor='black',
-                ticklen=6,
-                tickwidth=1.5,
-                tickmode='array',
-                ticks='outside',
-                outlinecolor='black',  # Add border color
-                outlinewidth=1.1,  # Add border width
-            ),
-            width=500,
-            height=500,
-            font=dict(
-                size=16,
-            ),
-        )
+    def plot_proton_density(self, 
+                            plot_type, 
+                            slice_idx=None, 
+                            dynamic_idx=None,
+                            color_continuous_scale='gray', 
+                            interval=8,
+                            rotate_xy_axes=False)  -> go.Figure:
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return None
+        fig = plot_proton_density(self.spin_density, 
+                                  plot_type=plot_type, 
+                                  slice_idx=slice_idx, 
+                                  dynamic_idx=dynamic_idx, 
+                                  title='Proton Density', 
+                                  color_continuous_scale=color_continuous_scale, 
+                                  interval=interval,
+                                  rotate_xy_axes=rotate_xy_axes
+                                  )
         return fig
+    
+    def get_spin_density(self) -> Optional[np.ndarray]:
+        """Safely access the spin_density attribute."""
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return None
+
+        if self.spin_density is None:
+            print("Spin density is not available. Ensure data is loaded and processed.")
+        return self.spin_density
+
+    def get_phase(self) -> Optional[np.ndarray]:
+        """Safely access the phase attribute."""
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return None
+
+        if self.phase is None:
+            print("Phase data is not available. Ensure velocity encoding is present.")
+        return self.phase
+    
+    def export_to_hdf5(self, filename: str) -> None:
+        """
+        Export the MRI experiment data to an HDF5 file.
+
+        Args:
+            filename (str): The name of the HDF5 file to save.
+        """
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return
+
+        with h5py.File(filename, 'w') as hdf:
+            # Save spin_density
+            hdf.create_dataset('spin_density', data=self.get_spin_density)
+            
+            # Save phase
+            hdf.create_dataset('phase', data=self.get_phase)
+            
+            print(f"Data exported to {filename} successfully.")

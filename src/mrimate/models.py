@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Tuple, List, Union
+from datetime import datetime
+from rich import print
 
 class ImageInformation_Philips(BaseModel):
     SliceNumber: int = Field(..., description="The number of imaged slices", unit= None)
@@ -16,10 +18,10 @@ class ImageInformation_Philips(BaseModel):
     RescaleSlope: float
     WindowCenter: int
     WindowWidth: int
-    ImageAngulation: Tuple[float,float,float] #(ap,fh,rl in degrees)
-    ImageOffcentre: Tuple[float,float,float] #(ap,fh,rl in mm) 
-    SliceThickness: float #in mm
-    SliceGap: float #in mm
+    ImageAngulation: Tuple[float,float,float] = Field(..., description="Angulation of the image along the three directions (ap,fh,rl)", unit= "degrees")
+    ImageOffcentre: Tuple[float,float,float] = Field(..., description="Off centre position of the image along the three directions (ap,fh,rl)", unit= "mm") 
+    SliceThickness: float = Field(..., description="Slice thickmess", unit= "mm") 
+    SliceGap: float = Field(..., description="Gap between slices", unit= "mm") 
     ImageDisplayOrientation: int
     SliceOrientation: int
     FmriStatusIndication: int
@@ -30,7 +32,7 @@ class ImageInformation_Philips(BaseModel):
     TriggerTime: float
     DiffusionBFactor: float
     NumberOfAverages: int
-    ImageFlipAngle: float # in degrees
+    ImageFlipAngle: float = Field(..., description="Excitation RF flip angle", unit= "degrees") 
     CardiacFrequency: int #bpm
     MinimumRrInterval: int # in ms 
     MaximumRrInterval: int # in ms
@@ -80,3 +82,41 @@ class MRIExperiment_Philips(BaseModel):
     MaxNumberOfGradientOrients: int
     NumberOfLabelTypes: int
     ImageInformation: List[ImageInformation_Philips]
+
+    def describe(self) -> None:
+        description = "Experiment Details:\n"
+        description += f"- Examination Name: {self.ExaminationName}\n"
+        description += f"- Type: {self.ScanMode}\n"
+        description += f"- Date: {datetime.strptime(self.ExaminationDateTime, '%Y.%m.%d / %H:%M:%S').strftime('%B %d, %Y')}\n\n"
+
+        description += "Scan Information:\n"
+        dimension = "3D" if '3D' in self.ScanMode else "2D"
+        description += f"- Technique: {self.Technique}\n"
+        description += f"- Dimension: {dimension}\n"
+        description += f"- Resolution: {self.ScanResolution[0]}x{self.ScanResolution[1]} pixels\n"
+        description += f"- Slices: {self.MaxNumberOfSlicesLocations}\n"
+        description += f"- Dynamics: {self.MaxNumberOfDynamics if self.MaxNumberOfDynamics > 1 else 'None'}\n"
+        description += f"- Flow Encoding: {'Yes' if self.PhaseEncodingVelocity != (0.0, 0.0, 0.0) else 'No'}\n"
+        description += f"- Diffusion Encoding: {'Yes' if self.Diffusion else 'No'}\n"
+
+        print(description)
+        return
+    
+    def display_parameters(self) -> None:
+        """Display model parameters with a customized ImageInformation field."""
+        
+        # Create a copy of self to modify
+        model_for_display = self.model_copy()
+
+        # Customize the ImageInformation field for display
+        if len(model_for_display.ImageInformation) > 1:
+            print("Note: The ImageInformation list contains more than one item. Displaying first and last dynamics")
+            model_for_display.ImageInformation = [
+                model_for_display.ImageInformation[0], 
+                model_for_display.ImageInformation[-1]
+            ]
+        
+        # Print the modified model
+        print(model_for_display)
+    
+        
