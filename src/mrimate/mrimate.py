@@ -92,16 +92,16 @@ class MRImateExperiment:
             
     def resize_data(self) -> None:
         """Resize the loaded data."""
-        if not self.parameters.is_flow_encoded:
+        if self.parameters.is_flow_encoded():
+            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.NumberOfSlices, self.parameters.NumberOfDynamics*2)
+            self.data = np.reshape(self.data, target_shape)
+            self.spin_density =  self.data[:, :, :, 0::2]#only for 1d velocity encoded
+            phase_integer =  self.data[:, :, :, 1::2]#only for 1d velocity encoded
+            self.phase = (phase_integer-np.max(phase_integer)/2)/np.max(phase_integer)/2*np.pi            
+        else:
             target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.NumberOfSlices, self.parameters.NumberOfDynamics)
             self.data = np.reshape(self.data, target_shape)
             self.spin_density = self.data
-        else:
-            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.NumberOfSlices, self.parameters.NumberOfDynamics*2)
-            self.data = np.reshape(self.data, target_shape)
-            self.spin_density =  self.data[:, :, :, 0::2]
-            phase_integer =  self.data[:, :, :, 1::2]
-            self.phase = (phase_integer-np.max(phase_integer)/2)/np.max(phase_integer)/2*np.pi
 
     def removing_unwanted_zeros(self) -> None:
       
