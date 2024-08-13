@@ -199,7 +199,6 @@ class MRImateExperiment:
             print("Data not loaded. Call 'load()' method first.")
             return None
         if self.parameters.is_flow_encoded:
-            print(self.parameters.MaxEncodedVelocity)
             self.velocity = self.phase*self.parameters.MaxEncodedVelocity #so far only valid for 1d velocity
         else:
             print("Phase data is not available. Ensure velocity encoding is present.")
