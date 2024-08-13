@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Any
 from datetime import datetime
 from rich import print
 import numpy as np
@@ -28,7 +28,7 @@ class ImageInformation_Philips(BaseModel):
     FmriStatusIndication: int
     ImageTypeEdEs: int
     PixelSpacing: Tuple[float, float] #in mm
-    EchoTime: float
+    EchoTime: float = Field(..., description="Echo time", unit= "ms") 
     DynScanBeginTime: float
     TriggerTime: float
     DiffusionBFactor: float
@@ -111,14 +111,29 @@ class MRIExperiment_Philips(BaseModel):
 
         # Customize the ImageInformation field for display
         if len(model_for_display.ImageInformation) > 1:
-            print("Note: The ImageInformation list contains more than one item. Displaying first and last dynamics")
+            print("Note: The ImageInformation list contains more than one item. Displaying only last dynamic")
             model_for_display.ImageInformation = [
-                model_for_display.ImageInformation[0], 
                 model_for_display.ImageInformation[-1]
             ]
         
         # Print the modified model
         print(model_for_display)
+
+    # def display_field_info(self, field_name: str) -> None:
+    #     """Display the description and unit information for a given field."""
+    #     field_info = self.model_fields.get(field_name)
+
+    #     if field_info:
+    #         description = field_info.description
+    #         unit = field_info.extra.get('unit')
+            
+    #         print(f"[bold cyan]{field_name}[/bold cyan]:")
+    #         if description:
+    #             print(f"  [bold]Description:[/bold] {description}")
+    #         if unit:
+    #             print(f"  [bold]Unit:[/bold] {unit}")
+    #     else:
+    #         print(f"[bold red]Field '{field_name}' not found.[/bold red]")
 
     def is_flow_encoded(self) -> bool:
         """Check if PhaseEncodingVelocity is non-zero."""
