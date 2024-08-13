@@ -37,6 +37,7 @@ nbformat = "^5.9.2"
 plotly-express = "^0.4.1"
 chart-studio = "^1.1.0"
 h5py = "^3.11.0"
+numpy = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.6.1"

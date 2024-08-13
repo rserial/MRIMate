@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Tuple, List, Union
 from datetime import datetime
 from rich import print
+import numpy as np
 
 class ImageInformation_Philips(BaseModel):
     SliceNumber: int = Field(..., description="The number of imaged slices", unit= None)
@@ -71,7 +72,7 @@ class MRIExperiment_Philips(BaseModel):
     OffCentreMidslice: Tuple[float, float, float]
     FlowCompensation: int
     Presaturation: int
-    PhaseEncodingVelocity: Tuple[float, float, float]#cm/s
+    PhaseEncodingVelocity: Tuple[float, float, float] = Field(..., description="Maximum encoded velocity", unit= "cm/s") 
     Mtc: int
     Spir: int
     EpiFactor: int
@@ -118,5 +119,20 @@ class MRIExperiment_Philips(BaseModel):
         
         # Print the modified model
         print(model_for_display)
+
+    def is_flow_encoded(self) -> bool:
+        """Check if PhaseEncodingVelocity is non-zero."""
+        return self.PhaseEncodingVelocity != (0.0, 0.0, 0.0)
     
-        
+    @property
+    def NumberOfSlices(self) -> int:
+        # Return the specific value for Philips
+        return self.MaxNumberOfSlicesLocations
+    
+    @property
+    def NumberOfDynamics(self) -> int:
+        return self.MaxNumberOfDynamics
+
+    @property
+    def MaxEncodedVelocity(self) -> float:
+        return np.linalg.norm(self.PhaseEncodingVelocity)

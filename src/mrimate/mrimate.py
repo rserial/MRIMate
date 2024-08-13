@@ -3,11 +3,10 @@
 from parrec.recread import Recread
 from parrec.parread import Parread
 from pathlib import Path
-from datetime import datetime
 import numpy as np
 from rich import print
 from mrimate.models import MRIExperiment_Philips
-from mrimate.plot import plot_proton_density
+from mrimate.plot import plot_2d_data
 import plotly.graph_objects as go
 from typing import Optional
 import h5py
@@ -61,7 +60,7 @@ class MRImateExperiment:
         self.par_file = experiment_path / (filename + '.par')
         self.rec_file = experiment_path / (filename + '.rec')
         self.parameters: MRIExperiment_Philips
-        self.data: Recread = None
+        self.data: np.ndarray = None
         self.spin_density: np.ndarray = None
         self.phase: np.ndarray = None
         self.data_loaded = False
@@ -93,15 +92,16 @@ class MRImateExperiment:
             
     def resize_data(self) -> None:
         """Resize the loaded data."""
-        if self.parameters.PhaseEncodingVelocity == (0.0, 0.0, 0.0):
-            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.MaxNumberOfSlicesLocations, self.parameters.MaxNumberOfDynamics)
+        if not self.parameters.is_flow_encoded:
+            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.NumberOfSlices, self.parameters.NumberOfDynamics)
             self.data = np.reshape(self.data, target_shape)
             self.spin_density = self.data
         else:
-            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.MaxNumberOfSlicesLocations, self.parameters.MaxNumberOfDynamics*2)
+            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.NumberOfSlices, self.parameters.NumberOfDynamics*2)
             self.data = np.reshape(self.data, target_shape)
             self.spin_density =  self.data[:, :, :, 0::2]
-            self.phase =  self.data[:, :, :, 1::2]
+            phase_integer =  self.data[:, :, :, 1::2]
+            self.phase = (phase_integer-np.max(phase_integer)/2)/np.max(phase_integer)/2*np.pi
 
     def removing_unwanted_zeros(self) -> None:
       
@@ -115,20 +115,47 @@ class MRImateExperiment:
 
     def plot_proton_density(self, 
                             plot_type, 
-                            slice_idx=None, 
+                            slice_idx=None,
+                            title='Proton Density',  
                             dynamic_idx=None,
-                            color_continuous_scale='gray', 
+                            color_continuous_scale='gray',
+                            colorbar_title_text = "Intensity",  
                             interval=8,
                             rotate_xy_axes=False)  -> go.Figure:
         if not self.data_loaded:
             print("Data not loaded. Call 'load()' method first.")
             return None
-        fig = plot_proton_density(self.spin_density, 
+        fig = plot_2d_data(self.spin_density, 
                                   plot_type=plot_type, 
                                   slice_idx=slice_idx, 
                                   dynamic_idx=dynamic_idx, 
-                                  title='Proton Density', 
-                                  color_continuous_scale=color_continuous_scale, 
+                                  title=title, 
+                                  color_continuous_scale=color_continuous_scale,
+                                  colorbar_title_text=colorbar_title_text, 
+                                  interval=interval,
+                                  rotate_xy_axes=rotate_xy_axes
+                                  )
+        return fig
+    
+    def plot_velocity(self, 
+                            plot_type, 
+                            slice_idx=None, 
+                            title='Velocity',  
+                            dynamic_idx=None,
+                            color_continuous_scale='RdBu',
+                            colorbar_title_text = "Velocity [cm/s]",  
+                            interval=8,
+                            rotate_xy_axes=False)  -> go.Figure:
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return None
+        fig = plot_2d_data(self.velocity, 
+                                  plot_type=plot_type, 
+                                  slice_idx=slice_idx, 
+                                  dynamic_idx=dynamic_idx, 
+                                  title=title, 
+                                  color_continuous_scale=color_continuous_scale,
+                                  colorbar_title_text=colorbar_title_text, 
                                   interval=interval,
                                   rotate_xy_axes=rotate_xy_axes
                                   )
@@ -154,22 +181,49 @@ class MRImateExperiment:
             print("Phase data is not available. Ensure velocity encoding is present.")
         return self.phase
     
-    def export_to_hdf5(self, filename: str) -> None:
+    def get_velocity(self) -> Optional[np.ndarray]:
+        """Safely access the phase attribute."""
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return None
+
+        if self.phase is None:
+            print("Phase data is not available. Ensure velocity encoding is present.")
+
+        if self.velocity is None:
+            print("Velocity data is not available. Call calculate_velocity() first.")        
+        return self.velocity
+
+    def calculate_velocity(self) -> Optional[np.ndarray]:
+        if not self.data_loaded:
+            print("Data not loaded. Call 'load()' method first.")
+            return None
+        if self.parameters.is_flow_encoded:
+            print(self.parameters.MaxEncodedVelocity)
+            self.velocity = self.phase*self.parameters.MaxEncodedVelocity #so far only valid for 1d velocity
+        else:
+            print("Phase data is not available. Ensure velocity encoding is present.")
+
+    def export_to_hdf5(self, filepath: Path, filename: str) -> None:
         """
         Export the MRI experiment data to an HDF5 file.
 
         Args:
+            filepath (Path): Path directory where to save the hdf5 file.
             filename (str): The name of the HDF5 file to save.
         """
         if not self.data_loaded:
             print("Data not loaded. Call 'load()' method first.")
             return
 
-        with h5py.File(filename, 'w') as hdf:
+        with h5py.File(filepath / filename, 'w') as hdf:
             # Save spin_density
-            hdf.create_dataset('spin_density', data=self.get_spin_density)
+            hdf.create_dataset('spin_density', data=self.get_spin_density())
             
             # Save phase
-            hdf.create_dataset('phase', data=self.get_phase)
+            hdf.create_dataset('phase', data=self.get_phase())
+
+            # Save velocity
+            hdf.create_dataset('velocity', data=self.get_velocity())
             
             print(f"Data exported to {filename} successfully.")
