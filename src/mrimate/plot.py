@@ -170,3 +170,142 @@ def plot_2d_data(data, plot_type='slices',
         )
     return fig
 
+def plot_2d_slider(data, plot_type='slices', 
+                   dynamic_idx=None, 
+                   slice_idx=None,
+                   title='Proton Density', 
+                   color_continuous_scale='gray',
+                   colorbar_title_text="Intensity", 
+                   interval=1, 
+                   rotate_xy_axes=False):
+    """
+    Generate an interactive slider plot for MRI data to slide through slices or dynamics.
+
+    Args:
+        data (ndarray): The MRI data to plot.
+        plot_type (str): Type of plot to generate ('slices' or 'dynamics').
+        slice_idx (int, optional): Index of the slice to plot when plot_type='dynamics'.
+        dynamic_idx (int, optional): Index of the dynamic to plot when plot_type='slices'.
+        title (str): Title of the plot.
+        color_continuous_scale (str): Color scale for the plot.
+        interval (int): Interval between slices or dynamics to plot in the slider.
+        rotate_xy_axes (bool): Rotate the data along the XY axes.
+    """
+    # Rotate data if rotate_xy_axes is True
+    if rotate_xy_axes:
+        data = np.rot90(data, k=1, axes=(0, 1))
+
+    # Determine the global zmin and zmax for consistent color scaling
+    zmin = np.min(data)
+    zmax = np.max(data)
+    
+    # Set default indices if not provided
+    if plot_type == 'slices':
+        num_slices = data.shape[2]
+        dynamics = dynamic_idx if dynamic_idx is not None else 0
+        indices = list(range(0, num_slices, interval))
+        if indices[-1] != num_slices - 1:
+            indices.append(num_slices - 1)
+    elif plot_type == 'dynamics':
+        num_dynamics = data.shape[3]
+        slices = slice_idx if slice_idx is not None else 0
+        indices = list(range(0, num_dynamics, interval))
+        if indices[-1] != num_dynamics - 1:
+            indices.append(num_dynamics - 1)
+    else:
+        raise ValueError("Invalid plot_type. Must be 'slices' or 'dynamics'.")
+
+    # Create initial frame to display
+    initial_frame = data[:, :, 0, dynamics] if plot_type == 'slices' else data[:, :, slices, 0]
+
+    fig = go.Figure(
+        data=[go.Heatmap(z=initial_frame, colorscale=color_continuous_scale, zmin=zmin, zmax=zmax)]
+    )
+
+    # Add frames for each slice or dynamic
+    frames = [
+        go.Frame(
+            data=[go.Heatmap(
+                z=data[:, :, i, dynamics] if plot_type == 'slices' else data[:, :, slices, i], 
+                colorscale=color_continuous_scale, zmin=zmin, zmax=zmax)],
+            name=str(i)
+        )
+        for i in indices
+    ]
+    
+    fig.frames = frames
+
+    # Set up slider steps
+    slider_steps = [
+        {"args": [[f.name], {"frame": {"duration": 100, "redraw": True}, "mode": "immediate"}],
+         "label": str(i),
+         "method": "animate"}
+        for i, f in enumerate(fig.frames)
+    ]
+
+    # Set up sliders and buttons
+    sliders = [{
+        "active": 0,
+        "yanchor": "top",
+        "xanchor": "left",
+        "currentvalue": {
+            "font": {"size": 16, "color": "black", "family": "Open Sans"},
+            "prefix": "Slice: " if plot_type == 'slices' else "Dynamic: ",
+            "visible": True,
+            "xanchor": "right"
+        },
+        "transition": {"duration": 300, "easing": "cubic-in-out"},
+        "pad": {"b": 10, "t": 50},
+        "len": 0.9,
+        "x": 0.1,
+        "y": 0,
+        "steps": slider_steps
+    }]
+
+    fig.update_layout(
+        sliders=sliders,
+        updatemenus=[{
+            "buttons": [
+                {
+                    "args": [None, {"frame": {"duration": 100, "redraw": True}, "fromcurrent": True, "mode": "immediate"}],
+                    "label": "&#9654;",  # Play symbol
+                    "method": "animate"
+                },
+                {
+                    "args": [[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate"}],
+                    "label": "&#9724;",  # Pause symbol
+                    "method": "animate"
+                }
+            ],
+            "direction": "left",
+            "pad": {"r": 10, "t": 87},
+            "showactive": False,
+            "type": "buttons",
+            "x": 0.1,
+            "xanchor": "right",
+            "y": 0,
+            "yanchor": "top"
+        }],
+        title=dict(
+            text=title,
+            font=dict(family="Open Sans", color="black", size=20)
+        ),
+        width=500,
+        height=600
+    )
+
+    # Display colorbar with custom font and style
+    fig.update_traces(showscale=True, colorbar=dict(
+        title=colorbar_title_text,
+        titleside="right",
+        titlefont=dict(family="Open Sans", color="black", size=14),
+        tickfont=dict(family="Open Sans", color="black", size=12),
+        thickness=15,
+        len=1.05,
+        outlinecolor='black',
+        outlinewidth=1
+    ))
+
+    # Show the figure
+    fig.show()
+
