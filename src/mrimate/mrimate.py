@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from rich import print
 from mrimate.models import MRIExperiment_Philips
-from mrimate.plot import plot_2d_data
+from mrimate.plot import plot_2d_data, plot_2d_slider
 import plotly.graph_objects as go
 from typing import Optional
 import h5py
@@ -119,11 +119,11 @@ class MRImateExperiment:
                             dynamic_idx=None,
                             color_continuous_scale='gray',
                             colorbar_title_text = "Intensity",  
-                            interval=8,
+                            interval=1,
                             rotate_xy_axes=False)  -> go.Figure:
         if not self.data_loaded:
             raise ValueError("Data not loaded. Call 'load()' method first.")
-        fig = plot_2d_data(self.spin_density, 
+        fig = plot_2d_slider(self.spin_density, 
                                   plot_type=plot_type, 
                                   slice_idx=slice_idx, 
                                   dynamic_idx=dynamic_idx, 
@@ -142,7 +142,7 @@ class MRImateExperiment:
                             dynamic_idx=None,
                             color_continuous_scale='RdBu',
                             colorbar_title_text = "Velocity [cm/s]",  
-                            interval=8,
+                            interval=1,
                             rotate_xy_axes=False)  -> go.Figure:
         if not self.data_loaded:
             raise ValueError("Data not loaded. Call 'load()' method first.")
