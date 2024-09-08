@@ -63,6 +63,7 @@ class MRImateExperiment:
         self.data: np.ndarray = None
         self.spin_density: np.ndarray = None
         self.phase: np.ndarray = None
+        self.velocity: np.ndarray = None
         self.data_loaded = False
 
 
@@ -77,16 +78,14 @@ class MRImateExperiment:
 
     def describe(self) -> None:
         if not self.data_loaded:
-            print("Data not loaded. Call 'load()' method first.")
-            return None
+            raise ValueError("Data not loaded. Call 'load()' method first.")
         if hasattr(self.parameters, 'describe'):
             self.parameters.describe()
 
     def display_parameters(self)-> None:
         """Display model parameters"""
         if not self.data_loaded:
-            print("Data not loaded. Call 'load()' method first.")
-            return None
+            raise ValueError("Data not loaded. Call 'load()' method first.")
         if hasattr(self.parameters, 'display_parameters'):
             self.parameters.display_parameters()
             
@@ -123,8 +122,7 @@ class MRImateExperiment:
                             interval=8,
                             rotate_xy_axes=False)  -> go.Figure:
         if not self.data_loaded:
-            print("Data not loaded. Call 'load()' method first.")
-            return None
+            raise ValueError("Data not loaded. Call 'load()' method first.")
         fig = plot_2d_data(self.spin_density, 
                                   plot_type=plot_type, 
                                   slice_idx=slice_idx, 
@@ -147,8 +145,8 @@ class MRImateExperiment:
                             interval=8,
                             rotate_xy_axes=False)  -> go.Figure:
         if not self.data_loaded:
-            print("Data not loaded. Call 'load()' method first.")
-            return None
+            raise ValueError("Data not loaded. Call 'load()' method first.")
+
         fig = plot_2d_data(self.velocity, 
                                   plot_type=plot_type, 
                                   slice_idx=slice_idx, 
@@ -164,44 +162,39 @@ class MRImateExperiment:
     def get_spin_density(self) -> Optional[np.ndarray]:
         """Safely access the spin_density attribute."""
         if not self.data_loaded:
-            print("Data not loaded. Call 'load()' method first.")
-            return None
+            raise ValueError("Data not loaded. Call 'load()' method first.")
 
         if self.spin_density is None:
-            print("Spin density is not available. Ensure data is loaded and processed.")
+            raise ValueError("Spin density is not available. Ensure data is loaded and processed.")
         return self.spin_density
 
     def get_phase(self) -> Optional[np.ndarray]:
         """Safely access the phase attribute."""
         if not self.data_loaded:
-            print("Data not loaded. Call 'load()' method first.")
-            return None
+            raise ValueError("Data not loaded. Call 'load()' method first.")
 
         if self.phase is None:
-            print("Phase data is not available. Ensure velocity encoding is present.")
+            raise ValueError("Phase data is not available. Ensure velocity encoding is present.")
         return self.phase
     
     def get_velocity(self) -> Optional[np.ndarray]:
         """Safely access the phase attribute."""
         if not self.data_loaded:
-            print("Data not loaded. Call 'load()' method first.")
-            return None
-
+            raise ValueError("Data not loaded. Call 'load()' method first.")
         if self.phase is None:
-            print("Phase data is not available. Ensure velocity encoding is present.")
+            raise ValueError("Phase data is not available. Ensure velocity encoding is present.")
 
         if self.velocity is None:
-            print("Velocity data is not available. Call calculate_velocity() first.")        
+            raise ValueError("Velocity data is not available. Call calculate_velocity() first.")  
         return self.velocity
 
     def calculate_velocity(self) -> Optional[np.ndarray]:
         if not self.data_loaded:
-            print("Data not loaded. Call 'load()' method first.")
-            return None
-        if self.parameters.is_flow_encoded:
+            raise ValueError("Data not loaded. Call 'load()' method first.")
+        if self.parameters.is_flow_encoded():
             self.velocity = self.phase*self.parameters.MaxEncodedVelocity #so far only valid for 1d velocity
         else:
-            print("Phase data is not available. Ensure velocity encoding is present.")
+            raise ValueError("Phase data is not available. Ensure velocity encoding is present.")
 
     def export_to_hdf5(self, filepath: Path, filename: str) -> None:
         """
@@ -220,9 +213,11 @@ class MRImateExperiment:
             hdf.create_dataset('spin_density', data=self.get_spin_density())
             
             # Save phase
-            hdf.create_dataset('phase', data=self.get_phase())
+            if self.phase is not None:
+                hdf.create_dataset('phase', data=self.get_phase())
 
+            if self.velocity is not None:
             # Save velocity
-            hdf.create_dataset('velocity', data=self.get_velocity())
+                hdf.create_dataset('velocity', data=self.get_velocity())
             
             print(f"Data exported to {filename} successfully.")

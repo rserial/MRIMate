@@ -50,8 +50,8 @@ def plot_2d_data(data, plot_type='slices',
             rows=rows, 
             cols=cols, 
             subplot_titles=[f'Slice {i+1}' for i in range(num_slices)],
-            horizontal_spacing=0,  # Reduce horizontal space between subplots
-            vertical_spacing=0.05   # Reduce vertical space between subplots
+            # horizontal_spacing=0,  # Reduce horizontal space between subplots
+            # vertical_spacing=0.05   # Reduce vertical space between subplots
         )
 
         for i in range(num_slices):
@@ -65,8 +65,8 @@ def plot_2d_data(data, plot_type='slices',
         fig.update_layout(
             title=title,
             font=dict(family="Open Sans", color="black", size=16),  # Set title font and color
-            width=max(200 * cols, min_size),
-            height=max(200 * rows, min_size)
+            width=max(data.shape[0]*cols, min_size),
+            height=max(data.shape[1]*rows, min_size)
         )
 
         # Remove axis labels and ticks
