@@ -147,7 +147,7 @@ class MRImateExperiment:
         if not self.data_loaded:
             raise ValueError("Data not loaded. Call 'load()' method first.")
 
-        fig = plot_2d_data(self.velocity, 
+        fig = plot_2d_slider(self.velocity, 
                                   plot_type=plot_type, 
                                   slice_idx=slice_idx, 
                                   dynamic_idx=dynamic_idx, 
