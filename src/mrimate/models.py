@@ -94,9 +94,10 @@ class MRIExperiment_Philips(BaseModel):
         dimension = "3D" if '3D' in self.ScanMode else "2D"
         description += f"- Technique: {self.Technique}\n"
         description += f"- Dimension: {dimension}\n"
-        description += f"- Resolution: {self.ScanResolution[0]}x{self.ScanResolution[1]} pixels\n"
+        description += f"- Pixel resolution: {self.ScanResolution[0]}x{self.ScanResolution[1]} pixels\n"
         description += f"- Slices: {self.MaxNumberOfSlicesLocations}\n"
         description += f"- Dynamics: {self.MaxNumberOfDynamics if self.MaxNumberOfDynamics > 1 else 'None'}\n"
+        description += f"- Dynamic scan time: {self.ImageInformation[1].DynScanBeginTime if self.MaxNumberOfDynamics > 1 else 'None'}\n"
         description += f"- Flow Encoding: {'Yes' if self.PhaseEncodingVelocity != (0.0, 0.0, 0.0) else 'No'}\n"
         description += f"- Diffusion Encoding: {'Yes' if self.Diffusion else 'No'}\n"
 
