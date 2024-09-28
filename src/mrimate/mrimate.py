@@ -96,7 +96,12 @@ class MRImateExperiment:
             self.data = np.reshape(self.data, target_shape)
             self.spin_density =  self.data[:, :, :, 0::2]#only for 1d velocity encoded
             phase_integer =  self.data[:, :, :, 1::2]#only for 1d velocity encoded
-            self.phase = (phase_integer-np.max(phase_integer)/2)/np.max(phase_integer)/2*np.pi            
+            self.phase = (phase_integer-np.max(phase_integer)/2)/np.max(phase_integer)/2*np.pi
+
+        elif self.parameters.MaxNumberOfEchoes > 1:
+            target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.NumberOfSlices, self.parameters.MaxNumberOfEchoes)
+            self.data = np.reshape(self.data, target_shape)
+            self.spin_density = self.data            
         else:
             target_shape = (self.data.shape[0],self.data.shape[1], self.parameters.NumberOfSlices, self.parameters.NumberOfDynamics)
             self.data = np.reshape(self.data, target_shape)
