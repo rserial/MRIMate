@@ -176,7 +176,9 @@ def plot_2d_slider(data, plot_type='slices',
                    title='Proton Density', 
                    color_continuous_scale='gray',
                    colorbar_title_text="Intensity", 
-                   interval=1, 
+                   interval=1,
+                   zmin=None,
+                   zmax=None, 
                    rotate_xy_axes=False):
     """
     Generate an interactive slider plot for MRI data to slide through slices or dynamics.
@@ -195,9 +197,11 @@ def plot_2d_slider(data, plot_type='slices',
     if rotate_xy_axes:
         data = np.rot90(data, k=1, axes=(0, 1))
 
-    # Determine the global zmin and zmax for consistent color scaling
-    zmin = np.min(data)
-    zmax = np.max(data)
+    if zmin:
+        zmin = np.min(data)
+
+    if zmax:
+        zmax = np.max(data)
     
     # Set default indices if not provided
     if plot_type == 'slices':
@@ -227,7 +231,7 @@ def plot_2d_slider(data, plot_type='slices',
         go.Frame(
             data=[go.Heatmap(
                 z=data[:, :, i, dynamics] if plot_type == 'slices' else data[:, :, slices, i], 
-                colorscale=color_continuous_scale, zmin=zmin, zmax=zmax)],
+                colorscale=color_continuous_scale)],
             name=str(i)
         )
         for i in indices
@@ -237,7 +241,7 @@ def plot_2d_slider(data, plot_type='slices',
 
     # Set up slider steps
     slider_steps = [
-        {"args": [[f.name], {"frame": {"duration": 100, "redraw": True}, "mode": "immediate"}],
+        {"args": [[f.name], {"frame": {"duration": 300, "redraw": True}, "mode": "immediate"}],
          "label": str(i),
          "method": "animate"}
         for i, f in enumerate(fig.frames)

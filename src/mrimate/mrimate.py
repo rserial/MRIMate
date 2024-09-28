@@ -120,7 +120,9 @@ class MRImateExperiment:
                             color_continuous_scale='gray',
                             colorbar_title_text = "Intensity",  
                             interval=1,
-                            rotate_xy_axes=False)  -> go.Figure:
+                            rotate_xy_axes=False,
+                            zmin=None,
+                            zmax=None)  -> go.Figure:
         if not self.data_loaded:
             raise ValueError("Data not loaded. Call 'load()' method first.")
         fig = plot_2d_slider(self.spin_density, 
@@ -131,7 +133,9 @@ class MRImateExperiment:
                                   color_continuous_scale=color_continuous_scale,
                                   colorbar_title_text=colorbar_title_text, 
                                   interval=interval,
-                                  rotate_xy_axes=rotate_xy_axes
+                                  rotate_xy_axes=rotate_xy_axes,
+                                  zmin = zmin,
+                                  zmax = zmax
                                   )
         return fig
     
@@ -143,7 +147,9 @@ class MRImateExperiment:
                             color_continuous_scale='RdBu',
                             colorbar_title_text = "Velocity [cm/s]",  
                             interval=1,
-                            rotate_xy_axes=False)  -> go.Figure:
+                            rotate_xy_axes=False,
+                            zmin = None,
+                            zmax = None)  -> go.Figure:
         if not self.data_loaded:
             raise ValueError("Data not loaded. Call 'load()' method first.")
 
@@ -155,7 +161,9 @@ class MRImateExperiment:
                                   color_continuous_scale=color_continuous_scale,
                                   colorbar_title_text=colorbar_title_text, 
                                   interval=interval,
-                                  rotate_xy_axes=rotate_xy_axes
+                                  rotate_xy_axes=rotate_xy_axes,
+                                  zmin = zmin,
+                                  zmax = zmax
                                   )
         return fig
     
