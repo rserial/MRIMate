@@ -1,5 +1,7 @@
-#data
+#data+notebooks
 notebooks/experiment_data.h5
+notebooks/quick_example.ipynb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
